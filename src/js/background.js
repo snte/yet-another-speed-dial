@@ -69,7 +69,11 @@ function convertUrlToAbsolute(origin, path) {
     } else if (path.indexOf('//') === 0) {
         return 'https:' + path;
     } else {
-        return new URL(origin).origin + path;
+        let url = new URL(origin);
+        if (url.pathname.slice(-1) !== "/") {
+            url.pathname = url.pathname + "/";
+        }
+        return url.origin + url.pathname + path;
     }
 }
 
@@ -78,6 +82,7 @@ function getThumbnails(url) {
         getOgImage(url)
             .then(result => saveThumbnails(url, result))
             .then(() => getScreenshot(url))
+            .then(result => resizeThumb(result))
             .then(result => saveThumbnails(url, result))
             .then(() => getLogo(url))
             .then(result => saveThumbnails(url, result))
@@ -184,18 +189,37 @@ function saveThumbnails(url, images) {
 // requires <all_urls> permission to capture image without a user gesture
 function getScreenshot(url) {
     return new Promise(function(resolve, reject) {
-        // make sure we are capturing the right thing
-        // in firefox we could get the tab by url and then capture it, but doesnt work in chrome: browser.tabs.query({url})
+        // capture from an existing tab if its open
         browser.tabs.query({active: true, windowId: browser.windows.WINDOW_ID_CURRENT})
             .then(tabs => browser.tabs.get(tabs[0].id))
             .then(tab => {
                 if (tab.url === url) {
-                    browser.tabs.captureVisibleTab({format:'jpeg', quality:40})
+                    browser.tabs.captureVisibleTab()
                         .then(imageUri => {
                             resolve(imageUri);
                         });
                 } else {
-                    resolve([]);
+                    // open tab, capture screenshot, and close
+                    let tabID = null;
+                    function handleUpdatedTab(tabId, changeInfo, tabInfo) {
+                        if (tabId === tabID && changeInfo.status === "complete") {
+                            // todo: complete loaded status sometimes !== actually loaded
+                            setTimeout(function() {
+                                browser.tabs.captureTab(tabID).then(imageUri => {
+                                    browser.tabs.onUpdated.removeListener(handleUpdatedTab);
+                                    browser.tabs.remove(tabID);
+                                    resolve(imageUri);
+                                });
+                            }, 1000);
+                        }
+                    }
+                    browser.tabs.onUpdated.addListener(handleUpdatedTab);
+
+                    browser.tabs.create({url, active:false}).then(tab => {
+                        tabID = tab.id;
+                        // todo: tab can be hidden in ff. not currently supported in chrome
+                        //browser.tabs.hide(tabID);
+                    });
                 }
             });
     });
@@ -215,27 +239,47 @@ function getLogo(url) {
     });
 }
 
-// todo: thumbs can be resized smaller for additional performance; need to balance quality
-// scale image to half size and compress
-function resizeThumb(dataURI){
+function resizeThumb(dataURI) {
     return new Promise(function(resolve, reject) {
+        if (!dataURI.length) {
+            resolve([]);
+            return;
+        }
         let img = new Image();
         img.onload = function() {
-            const width = Math.round(this.width / 2);
-            const height = Math.round(this.height / 2);
-            let canvas = document.createElement('canvas');
-            let ctx = canvas.getContext('2d');
-            ctx.imageSmoothingEnabled = true;
+            if (this.height > 512 && this.width > 512) {
 
-            canvas.width = width;
-            canvas.height = height;
-            ctx.drawImage(this, 0, 0, width, height);
+                let canvas = document.createElement('canvas');
+                let ctx = canvas.getContext('2d');
+                let canvas2 = document.createElement('canvas');
+                let ctx2 = canvas2.getContext('2d');
+                ctx2.imageSmoothingEnabled = true;
+                ctx2.imageSmoothingQuality = "high";
 
-            const dataURI = canvas.toDataURL('image/jpeg', 0.86);
-            resolve(dataURI);
+                // first pass: crop scrollbars, blur filter as an approximation for resampling
+                canvas.width = this.width-20;
+                canvas.height = this.height-20;
+                ctx.filter = `blur(1px)`;
+                ctx.drawImage(this, 0, 0, this.width-18, this.height-18, 0, 0, canvas.width, canvas.height);
+
+                // second pass: downscale to target size
+                let height = 256;
+                let ratio = height / this.height;
+                let width = Math.round(this.width * ratio);
+
+                canvas2.width = width;
+                canvas2.height = height;
+
+                ctx2.drawImage(canvas,0, 0, width, height);
+
+                const newDataURI = canvas2.toDataURL('image/jpeg', 0.86);
+                resolve(newDataURI);
+            } else {
+                resolve(dataURI);
+            }
         };
         img.src = dataURI;
-    })
+    });
 }
 
 function updateBookmark(id, bookmarkInfo) {
@@ -333,7 +377,6 @@ function handleInstalled(details) {
 
 function init() {
     browser.runtime.onConnect.addListener(connected);
-    browser.runtime.onInstalled.addListener(handleInstalled);
     // ff triggers 'moved' for bookmarks saved to different folder than default
     browser.bookmarks.onMoved.addListener(updateBookmark);
     browser.bookmarks.onChanged.addListener(changeBookmark);
@@ -370,5 +413,7 @@ function init() {
     // todo: runtime.oninstalled
     browser.runtime.setUninstallURL("https://forms.gle/UPvfa1xKZtoHJDeN7");
 }
+
+browser.runtime.onInstalled.addListener(handleInstalled);
 
 init();
