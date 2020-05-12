@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "yet another speed dial",
-  "description": "a modern speed dial for firefox and chrome",
+   "description": "A modern speed dial for Firefox and Chrome.",
   "version": "1.5.2",
   "author": "dev@conceptualspace.net",
   "icons": {
@@ -24,16 +24,10 @@
   "chrome_url_overrides": {
     "newtab": "index.html"
   },
-  "chrome_settings_overrides": {
-    "homepage": "index.html"
-  },
   "background": {
-    "scripts": ["js/background.js"]
-  },
-  "browser_specific_settings": {
-    "gecko": {
-      "id": "yet_another_speed_dial@conceptualspace.net",
-      "strict_min_version": "55.0"
-    }
+    "scripts": [
+      "js/browser-polyfill.min.js",
+      "js/background.js"
+    ]
   }
 }
