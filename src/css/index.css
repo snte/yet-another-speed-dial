@@ -1,10 +1,13 @@
 :root {
     --color: #ffffff;
     --title-opacity: 1;
-    --vertical-align: safe center;
+    --show-folders: inline;
     --top-padding: 50px;
     --create-dial-display: block;
     --chrome-display: none;
+    --clock: block;
+    --settings: block;
+
 }
 
 html, body {
@@ -16,6 +19,7 @@ html, body {
 
 body {
     background: #222222;
+    background-size: cover;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
     font-size: small;
     -webkit-user-select: none;
@@ -32,10 +36,10 @@ h1 {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    align-content: var(--vertical-align);
+    align-content: safe center;
     justify-content: center;
     padding: 60px;
-    height: 100%;
+    height: calc(100vh - 79px);
     transition: opacity 150ms ease-in;
     opacity: 0;
     overflow-x: hidden;
@@ -53,10 +57,17 @@ h1 {
     color: #ffffff;
     position: fixed;
     width: 100%;
+    z-index: 0;
 }
 
 .hide {
     opacity: 0;
+}
+.folderTitle {
+    opacity: 0.85;
+}
+.folderTitle:hover {
+    opacity: 1;
 }
 
 .tile {
@@ -106,6 +117,7 @@ h1 {
     border-radius: 12px;
     margin: 12px;
     display: var(--create-dial-display);
+    z-index: 1;
 }
 
 .createDial-content {
@@ -127,11 +139,11 @@ a {
 }
 
 .selected {
-    opacity: 0;
+    visibility: hidden;
 }
 
 .dragging {
-    opacity: 1;
+    opacity: 1 !important;
 }
 
 .menu {
@@ -264,6 +276,9 @@ a {
 .formItem > .save {
     background-color: #1681d9;
 }
+.formItem > .delete {
+    background-color: #dc3545;
+}
 .formItem > .close {
     background-color: dimgrey;
 }
@@ -305,7 +320,7 @@ input:focus {
     width: 320px; /* 0 width - change this with JavaScript */
     position: fixed; /* Stay in place */
     transform: translateX(100%);
-    z-index: 1; /* Stay on top */
+    z-index: 2; /* Stay on top */
     top: 0; /* Stay at the top */
     right: 0;
     background: rgba(0,0,0,1);
@@ -317,9 +332,28 @@ input:focus {
     justify-content: center;
 }
 
+#foldersContainer {
+    min-height: 78px;
+    padding: 30px;
+    margin-right: 110px;
+}
+#addFolderIcon {
+    display: var(--show-folders);
+    height: 18px;
+    vertical-align: middle;
+    opacity: 0.5;
+    padding-left: 12px;
+    transition: 360ms ease;
+}
+#addFolderIcon:hover {
+    opacity: 0.8;
+}
+#settingsBtn {
+    display: var(--settings);
+}
 .settingsIcon svg {
-    height: 1.5em;
-    width: 1.5em;
+    height: 21px;
+    width: 21px;
     position: absolute;
     right: 30px;
     top: 30px;
@@ -330,6 +364,17 @@ input:focus {
 
 .settingsIcon svg:hover {
     filter: opacity(0.8);
+}
+#clock {
+    position: absolute;
+    display: var(--clock);
+    right: 60px;
+    top: 30px;
+    color: var(--color);
+    opacity: 0.6;
+    font-size: large;
+    font-weight: lighter;
+    transition: 160ms ease;
 }
 
 #toast {
