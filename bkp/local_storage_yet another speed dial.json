@@ -1,0 +1,137 @@
+{
+  "http://192.168.178.150:5000/": {
+    "thumbIndex": 0,
+    "thumbnails": [ "tiles/synology.com.png" ]
+  },
+  "http://fritz.box/": {
+    "thumbIndex": 0,
+    "thumbnails": [ "tiles/fritz.box.png" ]
+  },
+  "https://bitbucket.org/": {
+    "thumbIndex": 0,
+    "thumbnails": [ "tiles/bitbucket.org.png" ]
+  },
+  "https://cssminifier.com/": {
+    "thumbIndex": 0,
+    "thumbnails": [ "tiles/cssminifier.com.png" ]
+  },
+  "https://github.com/login": {
+    "thumbIndex": 0,
+    "thumbnails": [ "tiles/github.com.png" ]
+  },
+  "https://gitlab.com/users/sign_in": {
+    "thumbIndex": 0,
+    "thumbnails": [ "tiles/gitlab.com.png" ]
+  },
+  "https://ha01s001.org-dns.com:8443/": {
+    "thumbIndex": 0,
+    "thumbnails": [ "tiles/wint.global-power2.png" ]
+  },
+  "https://login.wint.global/clientarea.php": {
+    "thumbIndex": 0,
+    "thumbnails": [ "tiles/wint.global.png" ]
+  },
+  "https://tcke.eu/index.php/login": {
+    "thumbIndex": 0,
+    "thumbnails": [ "tiles/nextcloud.com.png" ]
+  },
+  "https://thenextweb.com/": {
+    "thumbIndex": 0,
+    "thumbnails": [ "tiles/thenextweb.com.png" ]
+  },
+  "https://web.threema.ch/#!/messenger": {
+    "thumbIndex": 0,
+    "thumbnails": [ "tiles/threema.ch.png" ]
+  },
+  "https://web.whatsapp.com/": {
+    "thumbIndex": 0,
+    "thumbnails": [ "tiles/whatsapp.com.png" ]
+  },
+  "https://www.achgut.com/": {
+    "thumbIndex": 0,
+    "thumbnails": [ "tiles/achgut.com.png" ]
+  },
+  "https://www.amazon.de/": {
+    "thumbIndex": 0,
+    "thumbnails": [ "tiles/amazon.de.png" ]
+  },
+  "https://www.browserstack.com/": {
+    "thumbIndex": 0,
+    "thumbnails": [ "tiles/browserstack.com.png" ]
+  },
+  "https://www.cicero.de/": {
+    "thumbIndex": 0,
+    "thumbnails": [ "tiles/cicero.de.png" ]
+  },
+  "https://www.dekudeals.com/": {
+    "thumbIndex": 0,
+    "thumbnails": [ "tiles/dekudeals.com.png" ]
+  },
+  "https://www.drupal.org/user/login": {
+    "thumbIndex": 0,
+    "thumbnails": [ "tiles/drupal.org.png" ]
+  },
+  "https://www.ebay-kleinanzeigen.de/": {
+    "thumbIndex": 0,
+    "thumbnails": [ "tiles/ebay-kleinanzeigen.de.png" ]
+  },
+  "https://www.ebay.de/": {
+    "thumbIndex": 0,
+    "thumbnails": [ "tiles/ebay.de.png" ]
+  },
+  "https://www.google.com/": {
+    "thumbIndex": 0,
+    "thumbnails": [ "tiles/google.com.png" ]
+  },
+  "https://www.heise.de/": {
+    "thumbIndex": 0,
+    "thumbnails": [ "tiles/heise.de.png" ]
+  },
+  "https://www.idealo.de/": {
+    "thumbIndex": 0,
+    "thumbnails": [ "tiles/idealo.de.png" ]
+  },
+  "https://www.mydealz.de/": {
+    "thumbIndex": 0,
+    "thumbnails": [ "tiles/mydealz.de.png" ]
+  },
+  "https://www.nzz.ch/": {
+    "thumbIndex": 0,
+    "thumbnails": [ "tiles/nzz.ch.png" ]
+  },
+  "https://www.publicomag.com/": {
+    "thumbIndex": 0,
+    "thumbnails": [ "tiles/publicomag.com.png" ]
+  },
+  "https://www.reddit.com/": {
+    "thumbIndex": 0,
+    "thumbnails": [ "tiles/reddit.com.png" ]
+  },
+  "https://www.tichyseinblick.de/": {
+    "thumbIndex": 0,
+    "thumbnails": [ "tiles/tichyseinblick.de.png" ]
+  },
+  "https://www.welt.de/": {
+    "thumbIndex": 0,
+    "thumbnails": [ "tiles/welt.de.png" ]
+  },
+  "https://www.wired.com/": {
+    "thumbIndex": 0,
+    "thumbnails": [ "tiles/wired.com.png" ]
+  },
+  "https://www.youtube.com/": {
+    "thumbIndex": 0,
+    "thumbnails": [ "tiles/youtube.com.png" ]
+  },
+  "settings": {
+    "backgroundColor": "#111111",
+    "largeTiles": true,
+    "showAddSite": false,
+    "showClock": true,
+    "showFolders": true,
+    "showSettingsBtn": true,
+    "showTitles": true,
+    "wallpaper": true,
+    "wallpaperSrc": "chrome-extension://kbhmdalfiaipdjdboiboeoffpngknfnd/img/bg.jpg"
+  }
+}
