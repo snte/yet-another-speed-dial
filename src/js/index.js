@@ -90,6 +90,7 @@ function sort() {
     browser.storage.local.get('sort')
         .then(result => {
             if (result.sort) {
+                console.log('sort');
                 sortable.sort(result.sort);
                 animate();
             }
@@ -102,6 +103,7 @@ function printBookmarks(bookmarks) {
         for (let bookmark of bookmarks) {
             // todo: support folders
             if (bookmark.url) {
+                console.log(bookmark.url);
                 let thumbUrl = null;
                 if (cache[bookmark.url]) {
                     // if the image is a blob:
@@ -156,7 +158,7 @@ function printBookmarks(bookmarks) {
     fragment.appendChild(a);
 
     bookmarksContainer.appendChild(fragment);
-    sort();
+    //sort();
     bookmarksContainer.style.opacity = "1";
 }
 
