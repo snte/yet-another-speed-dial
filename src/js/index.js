@@ -6,7 +6,11 @@
 
 // speed dial
 const bookmarksContainer = document.getElementById('wrap');
+const foldersContainer = document.getElementById('folders');
+const foldersDiv = document.getElementById('foldersContainer');
+const addFolderButton = document.getElementById('addFolderButton');
 const menu = document.getElementById('contextMenu');
+const folderMenu = document.getElementById('folderMenu');
 const settingsMenu = document.getElementById('settingsMenu');
 const modal = document.getElementById('tileModal');
 const modalContent = document.getElementById('tileModalContent');
@@ -15,6 +19,22 @@ const createDialModal = document.getElementById('createDialModal');
 const createDialModalContent = document.getElementById('createDialModalContent');
 const createDialModalURL = document.getElementById('createDialModalURL');
 const createDialModalSave = document.getElementById('createDialModalSave');
+
+const createFolderModal = document.getElementById('createFolderModal');
+const createFolderModalContent = document.getElementById('createFolderModalContent');
+const createFolderModalName = document.getElementById('createFolderModalName');
+const createFolderModalSave = document.getElementById('createFolderModalSave');
+
+const editFolderModal = document.getElementById('editFolderModal');
+const editFolderModalContent = document.getElementById('editFolderModalContent');
+const editFolderModalName = document.getElementById('editFolderModalName');
+const editFolderModalSave = document.getElementById('editFolderModalSave');
+
+const deleteFolderModal = document.getElementById('deleteFolderModal');
+const deleteFolderModalContent = document.getElementById('deleteFolderModalContent');
+const deleteFolderModalName = document.getElementById('deleteFolderModalName');
+const deleteFolderModalSave = document.getElementById('deleteFolderModalSave');
+
 const toast = document.getElementById('toast');
 const toastContent = document.getElementById('toastContent');
 
@@ -38,9 +58,14 @@ const previewContainer = document.getElementById("previewContainer");
 const largeTilesInput = document.getElementById("largeTiles");
 const showTitlesInput = document.getElementById("showTitles");
 const showCreateDialInput = document.getElementById("showCreateDial");
-const verticalAlignInput = document.getElementById("verticalAlign");
+const showFoldersInput = document.getElementById("showFolders");
+const showClockInput = document.getElementById("showClock");
+const showSettingsBtnInput = document.getElementById("showSettingsBtn");
 const saveBtn = document.getElementById("saveBtn");
 const settingsToast = document.getElementById("settingsToast");
+
+// clock
+const clock = document.getElementById('clock');
 
 const port = "p-" + new Date().getTime();
 const tabMessagePort = browser.runtime.connect({name:port});
@@ -52,14 +77,26 @@ let sortable = null;
 let targetTileHref = null;
 let targetTileTitle = null;
 let targetNode = null;
+let targetFolder = null;
+let targetFolderName = null;
+let targetFolderLink = null;
+let folders = [];
+let currentFolder = null;
 
+function displayClock(){
+    clock.textContent = new Date().toLocaleString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
+    setTimeout(displayClock, 10000);
+}
+
+displayClock();
 
 function getBookmarks(folderId) {
     browser.bookmarks.getChildren(folderId).then(result => {
-        if (!result.length && settings.verticalAlign) {
+        if (folderId === speedDialId && !result.length && settings.showFolders) {
             noBookmarks.style.display = 'block';
+            addFolderButton.style.display = 'none';
         }
-        printBookmarks(result)
+        printBookmarks(result, folderId)
     });
 }
 
@@ -67,14 +104,32 @@ function removeBookmark(url) {
     browser.bookmarks.search({url})
         .then(bookmarks => {
             for (let bookmark of bookmarks) {
-                if (bookmark.parentId === speedDialId) {
+                if (bookmark.parentId === speedDialId || folders.indexOf(bookmark.parentId) !== -1 ) {
                     targetNode.remove();
                     browser.bookmarks.remove(bookmark.id);
                     browser.storage.local.remove(url);
+                    // todo -- this only working for root folder?
                     sortable.save();
                 }
             }
         })
+}
+
+function showFolder(id) {
+    hideSettings();
+    let folders = document.getElementsByClassName('container');
+    for (let folder of folders) {
+        if (folder.id === id || (folder.id === 'wrap' && id === speedDialId)) {
+            folder.style.display = "flex"
+            folder.style.opacity = "0";
+            // transition between folders. todo more elegant solution
+            setTimeout(function() {
+                folder.style.opacity = "1";
+            }, 16);
+        } else {
+            folder.style.display = "none";
+        }
+    }
 }
 
 function getThumbs(bookmarkUrl) {
@@ -87,23 +142,110 @@ function getThumbs(bookmarkUrl) {
 }
 
 function sort() {
-    browser.storage.local.get('sort')
+    browser.storage.local.get(speedDialId)
         .then(result => {
-            if (result.sort) {
-                console.log('sort');
-                sortable.sort(result.sort);
+            if (result[speedDialId]) {
+                sortable.sort(result[speedDialId]);
                 animate();
             }
         });
 }
 
-function printBookmarks(bookmarks) {
+function printFolderBookmarks() {
+    for (let folder of folders) {
+        getBookmarks(folder)
+    }
+}
+
+function folderLink(title, id) {
+    let a = document.createElement('a');
+    if (id === speedDialId) {
+        a.id = "homeFolderLink";
+    }
+    a.classList.add('tile');
+    a.classList.add('folderTitle');
+    a.setAttribute('folderId', id);
+    let linkText = document.createTextNode(title);
+    a.appendChild(linkText);
+    //a.href = "#"+bookmark.id;
+    a.onclick = function() {
+        showFolder(id);
+        currentFolder = id;
+    };
+    foldersContainer.appendChild(a);
+}
+
+function createFolder() {
+    hideSettings();
+    createFolderModalName.value = '';
+    createFolderModalName.focus();
+    createFolderModal.style.transform = "translateX(0%)";
+    createFolderModal.style.opacity = "1";
+    createFolderModalContent.style.transform = "scale(1)";
+    createFolderModalContent.style.opacity = "1";
+}
+
+function saveFolder() {
+    let name = createFolderModalName.value.trim();
+
+    browser.bookmarks.create({
+        title: name,
+        parentId: speedDialId
+    }).then(node => {
+        hideModal();
+    });
+}
+
+function editFolder() {
+    browser.bookmarks.update(targetFolder, {
+        title: editFolderModalName.value.trim()
+    }).then(node => {
+        hideModal();
+    });
+}
+
+function removeFolder() {
+    browser.bookmarks.removeTree(targetFolder).then(() => {
+        hideModal();
+        targetFolderLink.remove();
+        folders.splice(folders.indexOf(targetFolder), 1 );
+        if (!folders.length) {
+            document.getElementById('homeFolderLink').remove();
+        }
+        if (document.getElementById(targetFolder).style.display === 'flex') {
+            showFolder(speedDialId);
+        }
+        document.getElementById(targetFolder).remove();
+    });
+}
+
+// assumes 'bookmarks' param is content of a folder (from getBookmarks)
+function printBookmarks(bookmarks, parentId) {
     let fragment = document.createDocumentFragment();
+
+    //let folderContainer = document.createElement('div');
+    //folderContainer.id = parentId;
+    //document.body.append(div)
+
     if (bookmarks) {
         for (let bookmark of bookmarks) {
-            // todo: support folders
-            if (bookmark.url) {
-                console.log(bookmark.url);
+            // folders
+            if (!bookmark.url && bookmark.dateGroupModified) {
+                // setup "tabs" folder header links
+                if (!folders.length) {
+                    folderLink('Home', speedDialId)
+                }
+                if (folders.indexOf(bookmark.id) === -1) {
+                    folders.push(bookmark.id);
+                    folderLink(bookmark.title, bookmark.id)
+                } else {
+                    if (bookmark.id === targetFolder && targetFolderName !== bookmark.title) {
+                        targetFolderLink.textContent = bookmark.title;
+                    }
+                }
+
+            } else if (bookmark.url && bookmark.url !== "data:") {
+                // in ff bookmark "separators" can be created that have "data:" as the url
                 let thumbUrl = null;
                 if (cache[bookmark.url]) {
                     // if the image is a blob:
@@ -116,6 +258,7 @@ function printBookmarks(bookmarks) {
                 let a = document.createElement('a');
                 a.classList.add('tile');
                 a.href = bookmark.url;
+                a.setAttribute('data-id', bookmark.id);
 
                 let main = document.createElement('div');
                 main.classList.add('tile-main');
@@ -143,7 +286,8 @@ function printBookmarks(bookmarks) {
     let a = document.createElement('a');
     a.classList.add('tile', 'createDial');
     a.onclick = function() {
-        buildCreateDialModal();
+        hideSettings();
+        buildCreateDialModal(parentId);
         createDialModal.style.transform = "translateX(0%)";
         createDialModal.style.opacity = "1";
         createDialModalContent.style.transform = "scale(1)";
@@ -157,9 +301,68 @@ function printBookmarks(bookmarks) {
     a.appendChild(main);
     fragment.appendChild(a);
 
-    bookmarksContainer.appendChild(fragment);
-    //sort();
-    bookmarksContainer.style.opacity = "1";
+    // root speed dial dir
+    if (parentId === speedDialId) {
+        // populate folders divs
+        if (folders.length) {
+            printFolderBookmarks();
+        }
+
+        bookmarksContainer.appendChild(fragment);
+
+        // todo: clean this up, restore sort when we remove migration
+        // preserve sorting from 1.5 versions
+        migrate();
+
+        //sort();
+        bookmarksContainer.style.opacity = "1";
+
+    } else {
+        // build a folder "tab"
+        if (!document.getElementById(parentId)) {
+            let folderContainer = document.createElement('div');
+            folderContainer.id = parentId;
+            folderContainer.classList.add('container');
+            folderContainer.style.display = 'none';
+            folderContainer.style.opacity = "1";
+            document.body.append(folderContainer);
+        }
+
+        let folderContainerEl = document.getElementById(parentId);
+
+        // folder sorting..
+        // todo: this is fubar
+        let sortable = new Sortable(folderContainerEl, {
+            animation: 160,
+            ghostClass: 'selected',
+            dragClass: 'dragging',
+            filter: ".createDial",
+            onMove:function (evt) {
+                if (evt.related) {
+                    return !evt.related.classList.contains('createDial');
+                }
+            },
+            store: {
+                set: function(sortable) {
+                    let order = sortable.toArray();
+                    browser.storage.local.set({[parentId]:order});
+                }
+            }
+        });
+
+        // append bookmarks to container
+        folderContainerEl.appendChild(fragment);
+
+        // sort
+        browser.storage.local.get(parentId)
+            .then(result => {
+                if (result[parentId]) {
+                    sortable.sort(result[parentId]);
+                    animate();
+                }
+            });
+        //
+    }
 }
 
 function showContextMenu(top, left) {
@@ -175,6 +378,21 @@ function showContextMenu(top, left) {
     }
     menu.style.visibility = "visible";
     menu.style.opacity = "1";
+}
+
+function showFolderMenu(top, left) {
+    if ((document.body.clientWidth - left) < (folderMenu.clientWidth + 30)) {
+        folderMenu.style.left = (left - folderMenu.clientWidth) + 'px';
+    } else {
+        folderMenu.style.left = left + 'px';
+    }
+    if ((document.body.clientHeight - top) < (folderMenu.clientHeight + 30)) {
+        folderMenu.style.top = (top - folderMenu.clientHeight) + 'px';
+    } else {
+        folderMenu.style.top = top + 'px';
+    }
+    folderMenu.style.visibility = "visible";
+    folderMenu.style.opacity = "1";
 }
 
 function showSettingsMenu(top, left) {
@@ -197,6 +415,8 @@ function hideMenus() {
     menu.style.opacity = "0";
     settingsMenu.style.visibility = "hidden";
     settingsMenu.style.opacity = "0";
+    folderMenu.style.visibility = "hidden";
+    folderMenu.style.opacity = "0";
 }
 
 function openSettings() {
@@ -218,9 +438,24 @@ function hideModal() {
     createDialModalContent.style.opacity = "0";
     createDialModal.style.opacity = "0";
 
+    createFolderModalContent.style.transform = "scale(0.8)";
+    createFolderModalContent.style.opacity = "0";
+    createFolderModal.style.opacity = "0";
+
+    editFolderModalContent.style.transform = "scale(0.8)";
+    editFolderModalContent.style.opacity = "0";
+    editFolderModal.style.opacity = "0";
+
+    deleteFolderModalContent.style.transform = "scale(0.8)";
+    deleteFolderModalContent.style.opacity = "0";
+    deleteFolderModal.style.opacity = "0";
+
     setTimeout(function() {
         modal.style.transform = "translateX(100%)";
         createDialModal.style.transform = "translateX(100%)";
+        createFolderModal.style.transform = "translateX(100%)";
+        editFolderModal.style.transform = "translateX(100%)";
+        deleteFolderModal.style.transform = "translateX(100%)";
     }, 160);
 
     //modalContent.style.transform = "scale(0.8)";
@@ -231,8 +466,9 @@ function hideToast() {
     toastContent.innerText = '';
 }
 
-function buildCreateDialModal() {
+function buildCreateDialModal(parentId) {
     createDialModalURL.value = '';
+    createDialModalURL.parentId = parentId ? parentId : speedDialId;
     createDialModalURL.focus();
 }
 
@@ -287,15 +523,12 @@ function createDial() {
 
     browser.bookmarks.create({
         title: url,
-        url: url
+        url: url,
+        parentId: createDialModalURL.parentId
     }).then(node => {
-        browser.bookmarks.move(node.id, {parentId: speedDialId}).then(() => {
-            hideModal();
-            toastContent.innerText = ` Capturing images for ${url}...`;
-            toast.style.transform = "translateX(0%)";
-        }, reason => {
-            console.error(reason);
-        });
+        hideModal();
+        toastContent.innerText = ` Capturing images for ${url}...`;
+        toast.style.transform = "translateX(0%)";
     });
 }
 
@@ -355,8 +588,8 @@ function saveBookmarkSettings() {
     if (title !== targetTileTitle) {
         targetNode.children[0].children[1].textContent = title;
         // sortable ids changed so rewrite to storage
-        let order = sortable.toArray();
-        browser.storage.local.set({"sort":order});
+        //let order = sortable.toArray();
+        //browser.storage.local.set({"sort":order});
         browser.bookmarks.search({url})
         .then(bookmark => {
             browser.bookmarks.update(bookmark[0].id, {
@@ -564,10 +797,22 @@ function getAverageRGB(imgPath) {
 function applySettings() {
     return new Promise(function(resolve, reject) {
         // apply settings to speed dial
-        if (settings.verticalAlign) {
-            document.documentElement.style.setProperty('--vertical-align', 'safe center');
+        if (settings.showFolders) {
+            document.documentElement.style.setProperty('--show-folders', 'inline');
         } else {
-            document.documentElement.style.setProperty('--vertical-align', 'start');
+            document.documentElement.style.setProperty('--show-folders', 'none');
+        }
+
+        if (settings.showClock) {
+            clock.style.setProperty('--clock', 'block');
+        } else {
+            clock.style.setProperty('--clock', 'none');
+        }
+
+        if (settings.showSettingsBtn) {
+            settingsBtn.style.setProperty('--settings', 'block');
+        } else {
+            settingsBtn.style.setProperty('--settings', 'none');
         }
 
         if (settings.wallpaper && settings.wallpaperSrc) {
@@ -619,7 +864,9 @@ function applySettings() {
         showTitlesInput.checked = settings.showTitles;
         showCreateDialInput.checked = settings.showAddSite;
         largeTilesInput.checked = settings.largeTiles;
-        verticalAlignInput.checked = settings.verticalAlign;
+        showFoldersInput.checked = settings.showFolders;
+        showClockInput.checked = settings.showClock;
+        showSettingsBtnInput.checked = settings.showSettingsBtn;
 
         if (settings.wallpaperSrc) {
             imgPreview.setAttribute('src', settings.wallpaperSrc);
@@ -639,7 +886,9 @@ function saveSettings() {
     settings.showTitles = showTitlesInput.checked;
     settings.showAddSite = showCreateDialInput.checked;
     settings.largeTiles = largeTilesInput.checked;
-    settings.verticalAlign = verticalAlignInput.checked;
+    settings.showFolders = showFoldersInput.checked;
+    settings.showClock = showClock.checked;
+    settings.showSettingsBtn = showSettingsBtn.checked;
 
     browser.storage.local.set({settings})
         .then(()=> {
@@ -654,6 +903,9 @@ function saveSettings() {
 
 // override context menu
 document.addEventListener( "contextmenu", function(e) {
+    if (e.target.type === 'text' && (e.target.id === 'modalTitle' || e.target.id === 'createDialModalURL')) {
+        return;
+    }
     e.preventDefault();
     // prevent settings from being opened and immediately hidden when right-clicking the gear icon
     if (e.target.id === 'settingsDiv') {
@@ -665,6 +917,12 @@ document.addEventListener( "contextmenu", function(e) {
         targetTileHref = e.target.parentElement.parentElement.href;
         targetTileTitle = e.target.nextElementSibling.innerText;
         showContextMenu(e.pageY, e.pageX);
+        return false;
+    } else if (e.target.className === 'tile folderTitle' && e.target.id !== "homeFolderLink") {
+        targetFolderLink = e.target;
+        targetFolder = e.target.attributes.folderId.nodeValue;
+        targetFolderName = e.target.textContent;
+        showFolderMenu(e.pageY, e.pageX);
         return false;
     } else if (e.target.className === 'container' || e.target.className === 'default-content') {
         showSettingsMenu(e.pageY, e.pageX);
@@ -697,6 +955,7 @@ window.addEventListener("mousedown", e => {
         case 'tile-content':
         case 'tile-title':
         case 'container':
+        case 'folders':
             hideSettings();
             break;
         case 'modal':
@@ -726,6 +985,34 @@ window.addEventListener("mousedown", e => {
                 case 'delete':
                     removeBookmark(targetTileHref);
                     break;
+                case 'editFolder':
+                    //buildFolderModal(targetFolder, targetFolderName);
+                    editFolderModalName.value = targetFolderName;
+                    editFolderModal.style.transform = "translateX(0%)";
+                    editFolderModal.style.opacity = "1";
+                    editFolderModalContent.style.transform = "scale(1)";
+                    editFolderModalContent.style.opacity = "1";
+                    break;
+                case 'deleteFolder':
+                    deleteFolderModalName.textContent = targetFolderName;
+                    deleteFolderModal.style.transform = "translateX(0%)";
+                    deleteFolderModal.style.opacity = "1";
+                    deleteFolderModalContent.style.transform = "scale(1)";
+                    deleteFolderModalContent.style.opacity = "1";
+                    break;
+                case 'newDial':
+                    // prevent default required to stop focus from leaving the modal input
+                    e.preventDefault();
+                    buildCreateDialModal(currentFolder);
+                    createDialModal.style.transform = "translateX(0%)";
+                    createDialModal.style.opacity = "1";
+                    createDialModalContent.style.transform = "scale(1)";
+                    createDialModalContent.style.opacity = "1";
+                    break;
+                case 'newFolder':
+                    e.preventDefault();
+                    createFolder();
+                    break;
             }
             break;
         default:
@@ -742,6 +1029,13 @@ window.addEventListener("keydown", event => {
 
 modalSave.addEventListener("click", saveBookmarkSettings);
 createDialModalSave.addEventListener("click", createDial);
+
+addFolderButton.addEventListener("click", createFolder);
+createFolderModalSave.addEventListener("click", saveFolder)
+
+editFolderModalSave.addEventListener("click", editFolder)
+
+deleteFolderModalSave.addEventListener("click", removeFolder);
 
 for(let button of closeModal) {
     button.onclick = function(e) {
@@ -797,6 +1091,48 @@ wallPaperEnabled.onchange = function() {
     }
 };
 
+// v1.x -> 1.6
+// 1.6 uses bookmark id to sort, 1.5 used default SortableJS algorithm
+function migrate() {
+    browser.storage.local.get("sort").then(result => {
+        if (result && result.sort) {
+
+            console.log("upgrading to v1.6...");
+
+            let idsMapped = {};
+            let idsSorted = [];
+            let tiles = document.getElementsByClassName("tile");
+            for (let tile of tiles) {
+                if (tile.href) {
+                    let str = tile.tagName + tile.className + tile.src + tile.href + tile.textContent,
+                        i = str.length,
+                        sum = 0;
+                    while (i--) {
+                        sum += str.charCodeAt(i);
+                    }
+                    let oldSortId = sum.toString(36);
+                    idsMapped[oldSortId] = tile.getAttribute("data-id");
+                }
+            }
+
+            idsMapped["1wv"] = "1wv";
+
+            for (let item of result.sort) {
+                if (idsMapped[item]) {
+                    idsSorted.push(idsMapped[item]);
+                }
+            }
+            sortable.sort([idsSorted]);
+            browser.storage.local.set({[speedDialId]:idsSorted}).then(setItem => {
+                browser.storage.local.remove("sort");
+                sort();
+                // upgrade complete;
+            });
+        } else {
+            sort();
+        }
+    });
+}
 function init() {
 
     tabMessagePort.onMessage.addListener(function(m) {
@@ -809,7 +1145,12 @@ function init() {
             cache = m.cache;
             hideToast();
             noBookmarks.style.display = 'none';
+            addFolderButton.style.display = 'inline';
             bookmarksContainer.innerHTML = "";
+            for (let folder of folders) {
+                console.log(folder);
+                document.getElementById(folder).innerHTML = "";
+            }
             getBookmarks(speedDialId)
         }
     });
@@ -829,7 +1170,7 @@ function init() {
         store: {
             set: function(sortable) {
                 let order = sortable.toArray();
-                browser.storage.local.set({"sort":order});
+                browser.storage.local.set({[speedDialId]:order});
             }
         }
     });

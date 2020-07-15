@@ -6,6 +6,7 @@
 
 let messagePorts = [];
 let speedDialId = null;
+let folderIds = [];
 let settings = null;
 let defaults = {
     wallpaper: true,
@@ -14,7 +15,9 @@ let defaults = {
     largeTiles: true,
     showTitles: true,
     showAddSite: true,
-    verticalAlign: true
+    showFolders: true,
+    showSettingsBtn: true,
+    showClock: true,
 };
 let cache = {};
 let ready = false;
@@ -24,6 +27,13 @@ function getSpeedDialId() {
     browser.bookmarks.search({title: 'Speed Dial', url: undefined}).then(result => {
         if (result.length && result[0]) {
             speedDialId = result[0].id;
+            browser.bookmarks.getChildren(speedDialId).then(results => {
+                for (let result of results) {
+                    if (!result.url && result.dateGroupModified) {
+                        folderIds.push(result.id);
+                    }
+                }
+            })
         } else {
             browser.bookmarks.create({title: 'Speed Dial'}).then(result => {
                 speedDialId = result.id;
@@ -37,6 +47,18 @@ function getSpeedDialId() {
     });
 }
 
+function handleBrowserAction(tab) {
+    browser.bookmarks.search({url: tab.url}).then(result => {
+        if (!result.length) {
+            browser.bookmarks.create({
+                parentId: speedDialId,
+                title: tab.title,
+                url: tab.url
+            })
+        }
+        browser.browserAction.disable(tab.id);
+    });
+}
 function onClickHandler(info, tab) {
     if (info.menuItemId === 'addToSpeedDial') {
         // avoid duplicates
@@ -70,10 +92,14 @@ function convertUrlToAbsolute(origin, path) {
         return 'https:' + path;
     } else {
         let url = new URL(origin);
-        if (url.pathname.slice(-1) !== "/") {
-            url.pathname = url.pathname + "/";
+        if (path.slice(0,1) === "/") {
+            return url.origin + path;
+        } else {
+            if (url.pathname.slice(-1) !== "/") {
+                url.pathname = url.pathname + "/";
+            }
+            return url.origin + url.pathname + path;
         }
-        return url.origin + url.pathname + path;
     }
 }
 
@@ -86,7 +112,8 @@ function getThumbnails(url) {
             .then(result => saveThumbnails(url, result))
             .then(() => getLogo(url))
             .then(result => saveThumbnails(url, result))
-            .then(() => resolve());
+            .then(() => resolve())
+            .catch(error => console.log(error));
     });
 }
 
@@ -160,6 +187,8 @@ function getOgImage(url) {
                 } else {
                     resolve(images);
                 }
+            }, reason => {
+                console.log(reason);
             });
         };
         xhr.open("GET", url);
@@ -311,7 +340,7 @@ function updateBookmark(id, bookmarkInfo) {
 }
 
 function removeBookmark(id, bookmarkInfo) {
-    if (bookmarkInfo.parentId === speedDialId) {
+    if (bookmarkInfo.url && (bookmarkInfo.parentId === speedDialId || folderIds.indexOf(bookmarkInfo.parentId) !== -1)) {
         browser.storage.local.remove(bookmarkInfo.node.url)
     }
 }
@@ -333,21 +362,62 @@ function updateSettings() {
     });
 }
 
+// todo: test behavior on chrome
+function moved(id, info) {
+    console.log("onMoved");
+    changeBookmark(id, info);
+}
+
+function changed(id, info) {
+    console.log("onChanged");
+    changeBookmark(id, info);
+}
+
+function created(id, info) {
+    console.log("onCreated");
+    changeBookmark(id, info);
+}
+
 // should only fire when bookmark created via bookmarks manager directly in the speed dial folder
 // todo: allow editing URLs from speed dial page
+// todo: something f'd up with getthumbnails
 function changeBookmark(id, info) {
-    if (info.url) {
-        browser.bookmarks.get(id).then(bookmark => {
-            if (bookmark[0].parentId === speedDialId) {
-                // todo: skip if already in the cache
-                getThumbnails(bookmark[0].url).then(() => {
-                    pushToCache(bookmark[0].url).then(() => {
-                        refreshOpen()
-                    })
-                })
+    // info may only contain "changed" info -- ex. it may not contain url for moves, just old and new folder ids
+    // so we always "get" the bookmark to access all its info
+    browser.bookmarks.get(id).then(bookmark => {
+        // only interested in speed dial and its subfolders
+        if (bookmark[0].parentId === speedDialId || folderIds.indexOf(bookmark[0].parentId) !== -1) {
+            if (bookmark[0].url) {
+                if (bookmark[0].url !== "data:" && bookmark[0].url !== "about:blank") {
+                    browser.storage.local.get(bookmark[0].url).then(result => {
+                        if (result[bookmark[0].url]) {
+                            // a pre-existing bookmark is being modified; dont fetch new thumbnails
+                            // todo: broken with folders -- doesnt allow same site to have separate images in 2 folders..
+                            // todo: there might be a race condition here for bookmarks created via context menu
+                            refreshOpen();
+                        } else {
+                            getThumbnails(bookmark[0].url).then(() => {
+                                pushToCache(bookmark[0].url).then(() => {
+                                    refreshOpen()
+                                })
+                            })
+                        }
+                    });
+                }
+            } else {
+                // folder
+                // todo: support manual import of other folder: other folder wont have thumbs for individual sites
+                //  but only triggers the change listener for the folder
+                if (bookmark[0].title === "New Folder") {
+                    // firefox creates a placeholder for the folder when created via bookmark manager
+                    return
+                }
+                // new folder
+                folderIds.push(id);
+                refreshOpen()
             }
-        });
-    }
+        }
+    });
 }
 
 function connected(p) {
@@ -371,6 +441,8 @@ function connected(p) {
         let i = messagePorts.indexOf(p);
         messagePorts.splice(i, 1);
     });
+
+    browser.browserAction.disable(p.sender.tab.id);
 }
 
 // migration from v1.3.x -> v1.4.x
@@ -393,10 +465,15 @@ function handleInstalled(details) {
 function init() {
     browser.runtime.onConnect.addListener(connected);
     // ff triggers 'moved' for bookmarks saved to different folder than default
-    browser.bookmarks.onMoved.addListener(updateBookmark);
-    browser.bookmarks.onChanged.addListener(changeBookmark);
+    browser.bookmarks.onMoved.addListener(moved);
+    // ff triggers 'changed' for bookmarks created manually? todo: confirm
+    browser.bookmarks.onChanged.addListener(changed);
+    // chrome triggers oncreated for bookmarks created manually in bookmark mgr. todo: make sure this doesnt hurt ff
+    browser.bookmarks.onCreated.addListener(created);
     browser.bookmarks.onRemoved.addListener(removeBookmark);
     browser.contextMenus.onClicked.addListener(onClickHandler);
+
+    browser.browserAction.onClicked.addListener(handleBrowserAction);
 
     // build a thumbnail cache of url:thumbUrl pairs
     browser.storage.local.get().then(result => {
@@ -408,7 +485,8 @@ function init() {
             }
             const entries = Object.entries(result);
             for (let e of entries) {
-                if (e[0] !== "settings" && e[0] !== "sort") {
+                // todo: filter folder ids
+                if (e[0] !== "settings" && e[1].thumbnails) {
                     let index = e[1].thumbIndex;
                     cache[e[0]] = e[1].thumbnails[index];
                 }
