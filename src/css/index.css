@@ -39,6 +39,7 @@ h1 {
     align-content: safe center;
     justify-content: center;
     padding: 60px;
+    padding-top: 20px;
     height: calc(100vh - 79px);
     transition: opacity 150ms ease-in;
     opacity: 0;
@@ -73,10 +74,9 @@ h1 {
 .tile {
     width: 188px;
     height: 140px;
-    border-radius: 7px;
+    border-radius: 6px;
     margin: 12px;
 }
-
 .tile:hover {
 
 }
@@ -334,13 +334,17 @@ input:focus {
 
 #foldersContainer {
     min-height: 78px;
-    padding: 30px;
+    padding: 30px 30px 30px 18px;
     margin-right: 110px;
 }
+#foldersContainer a.tile {
+    font-size: large;
+}
+
 #addFolderIcon {
     display: var(--show-folders);
-    height: 18px;
-    vertical-align: middle;
+    height: 21px;
+    vertical-align: top;
     opacity: 0.5;
     padding-left: 12px;
     transition: 360ms ease;
