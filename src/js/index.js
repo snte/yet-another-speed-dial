@@ -227,6 +227,13 @@ function printBookmarks(bookmarks, parentId) {
     //folderContainer.id = parentId;
     //document.body.append(div)
 
+    if (!settings.showTitles) {
+        document.body.classList.add('no-tile-titles');
+    }
+    else {
+        document.body.classList.remove('no-tile-titles');
+    }
+
     if (bookmarks) {
         for (let bookmark of bookmarks) {
             // folders
@@ -838,8 +845,10 @@ function applySettings() {
 
         if (!settings.showTitles) {
             document.documentElement.style.setProperty('--title-opacity', '0');
+            document.body.classList.add('no-tile-titles');
         } else {
             document.documentElement.style.setProperty('--title-opacity', '1');
+            document.body.classList.remove('no-tile-titles');
         }
 
         if (!settings.showAddSite) {
