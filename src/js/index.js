@@ -84,7 +84,7 @@ let folders = [];
 let currentFolder = null;
 
 function displayClock(){
-    clock.textContent = new Date().toLocaleString('en-US', { hour: 'numeric', minute: 'numeric', hour12: false });
+    clock.textContent = new Date().toLocaleString('en-US', { hour: 'numeric', minute: 'numeric', hour12: false, hourCycle: 'h23' });
     setTimeout(displayClock, 10000);
 }
 
